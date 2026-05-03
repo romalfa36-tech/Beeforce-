@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>BEE FORCE OS - Management System</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&family=Bebas+Neue&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+/* ══ DESIGN TOKENS ════════════════════════════════════════ */
+:root {
+  --honey:#F5A623; --amber:#FF8C00; --deep:#C97B1A;
+  --dk0:#080808; --dk1:#111111; --dk2:#191919; --dk3:#222222; --dk4:#2C2C2C;
+  --border:rgba(245,166,35,.14); --brite:rgba(245,166,35,.40);
+  --text:#F0E6D3; --muted:#8A7A66; --dim:#44382A;
+  --ok:#4CAF50; --err:#FF4444; --warn:#FF8C00; --info:#2196F3;
+  --nav-h:60px; --top-h:54px; --safe-b:env(safe-area-inset-bottom,0px);
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:'Tajawal',sans-serif;background:var(--dk0);color:var(--text);direction:rtl;-webkit-font-smoothing:antialiased;}
+
+/* ══ LOGIN SCREEN ════════════════════════════════════════ */
+#login-screen{position:fixed;inset:0;z-index:10000;background:var(--dk0);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;}
+.login-card{width:100%;max-width:380px;background:var(--dk1);border:1px solid var(--border);border-radius:20px;padding:30px;}
+.login-logo{font-family:'Bebas Neue',sans-serif;font-size:48px;color:var(--honey);text-align:center;margin-bottom:10px;}
+.login-form{display:flex;flex-direction:column;gap:12px;}
+.login-input{background:var(--dk3);border:1px solid var(--border);border-radius:10px;padding:12px;color:var(--text);font-family:inherit;font-size:14px;}
+.login-btn{background:var(--honey);color:#000;border:none;border-radius:10px;padding:12px;font-weight:700;cursor:pointer;font-family:inherit;}
+.login-err{color:var(--err);font-size:12px;text-align:center;display:none;}
+
+/* ══ APP SHELL ════════════════════════════════════════════ */
+#app{display:none;flex-direction:column;height:100dvh;}
+#app.active{display:flex;}
+
+#topbar{height:var(--top-h);background:var(--dk1);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 14px;gap:10px;}
+.top-brand{font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--honey);}
+.top-page{flex:1;font-size:14px;font-weight:700;}
+.top-user{display:flex;align-items:center;gap:8px;background:var(--dk3);border:1px solid var(--border);border-radius:10px;padding:4px 10px;cursor:pointer;font-size:11px;}
+.top-logout{background:none;border:none;color:var(--err);cursor:pointer;font-weight:700;}
+
+#scroll{flex:1;overflow-y:auto;padding:14px 12px calc(var(--nav-h) + 14px);}
+#scroll::-webkit-scrollbar{display:none;}
+
+.page{display:none;}
+.page.active{display:block;}
+
+#nav{height:var(--nav-h);background:var(--dk1);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(5,1fr);position:fixed;bottom:0;left:0;right:0;z-index:200;}
+.nav-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;color:var(--muted);cursor:pointer;}
+.nav-btn.active{color:var(--honey);}
+
+.panel{background:var(--dk2);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:14px;}
+.order-card{background:var(--dk3);border:1px solid var(--border);border-radius:12px;padding:13px;margin-bottom:10px;}
+.badge{display:inline-block;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700;}
+.b-new{background:rgba(33,150,243,.15);color:var(--info);}
+.b-prog{background:rgba(255,140,0,.15);color:var(--warn);}
+.b-done{background:rgba(76,175,80,.15);color:var(--ok);}
+.b-err{background:rgba(255,68,68,.15);color:var(--err);}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:11px 18px;border-radius:10px;border:none;cursor:pointer;font-weight:700;font-family:inherit;transition:all .2s;}
+.btn-honey{background:var(--honey);color:#000;}
+.btn-ghost{background:transparent;border:1px solid var(--brite);color:var(--muted);}
+.btn-full{width:100%;}
+
+.finp{background:var(--dk3);border:1px solid var(--border);border-radius:10px;padding:12px;color:var(--text);font-family:inherit;width:100%;margin-bottom:12px;}
+
+#toasts{position:fixed;top:calc(var(--top-h)+8px);left:50%;transform:translateX(-50%);z-index:9000;max-width:400px;}
+.toast{background:var(--dk3);border:1px solid var(--brite);border-radius:12px;padding:12px;margin-bottom:8px;font-size:12px;animation:slideIn .3s;}
+@keyframes slideIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+
+.loading{text-align:center;padding:20px;color:var(--muted);}
+.spinner{border:3px solid var(--border);border-top:3px solid var(--honey);border-radius:50%;width:30px;height:30px;animation:spin 1s linear infinite;margin:0 auto;}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">🐝 BEEFORCE</div>
+    <div class="login-form">
+      <input class="login-input" type="text" id="login-user" placeholder="اسم المستخدم" autocomplete="off">
+      <input class="login-input" type="password" id="login-pass" placeholder="كلمة المرور" autocomplete="off">
+      <button class="login-btn" onclick="doLogin()">دخول النظام</button>
+    </div>
+    <div class="login-err" id="login-err">❌ بيانات خاطئة</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <!-- TOPBAR -->
+  <div id="topbar">
+    <div class="top-brand">🐝 BF</div>
+    <div class="top-page" id="top-title">لوحة التحكم</div>
+    <div class="top-user" id="top-user">—</div>
+    <button class="top-logout" onclick="doLogout()">↩</button>
+  </div>
+
+  <!-- SCROLL CONTENT -->
+  <div id="scroll">
+    <!-- DASHBOARD -->
+    <div class="page active" id="p-dashboard">
+      <h2>لوحة التحكم</h2>
+      <div id="dashboard-content" class="loading"><div class="spinner"></div></div>
+    </div>
+
+    <!-- ORDERS -->
+    <div class="page" id="p-orders">
+      <h2>الطلبات</h2>
+      <button class="btn btn-honey" onclick="openModal('new-order')">+ طلب جديد</button>
+      <div id="orders-list" class="loading"><div class="spinner"></div></div>
+    </div>
+
+    <!-- TEAM -->
+    <div class="page" id="p-team">
+      <h2>الفريق</h2>
+      <button class="btn btn-honey" onclick="openModal('add-emp')">+ موظف جديد</button>
+      <div id="team-list" class="loading"><div class="spinner"></div></div>
+    </div>
+
+    <!-- FINANCE -->
+    <div class="page" id="p-finance">
+      <h2>المالية</h2>
+      <div id="finance-content" class="loading"><div class="spinner"></div></div>
+    </div>
+
+    <!-- CLIENTS -->
+    <div class="page" id="p-clients">
+      <h2>العملاء</h2>
+      <div id="clients-list" class="loading"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <div id="nav">
+    <button class="nav-btn active" onclick="goto('dashboard',this)">📊<br>الرئيسية</button>
+    <button class="nav-btn" onclick="goto('orders',this)">📋<br>الطلبات</button>
+    <button class="nav-btn" onclick="goto('team',this)">👥<br>الفريق</button>
+    <button class="nav-btn" onclick="goto('finance',this)">💰<br>المالية</button>
+    <button class="nav-btn" onclick="goto('clients',this)">🤝<br>العملاء</button>
+  </div>
+</div>
+
+<!-- MODALS -->
+<!-- New Order Modal -->
+<dialog id="modal-new-order" style="border:none;border-radius:20px;background:var(--dk2);color:var(--text);width:90%;max-width:400px;">
+  <h3 style="color:var(--honey);margin-bottom:15px;">طلب جديد</h3>
+  <div style="display:flex;flex-direction:column;gap:12px;">
+    <input class="finp" type="text" id="o-client" placeholder="اسم العميل">
+    <input class="finp" type="number" id="o-val" placeholder="القيمة (ر.س)">
+    <select class="finp" id="o-type"><option>كاتيرينج</option><option>وحدات</option><option>شامل</option></select>
+    <button class="btn btn-honey btn-full" onclick="submitOrder()">✅ حفظ</button>
+    <button class="btn btn-ghost btn-full" onclick="closeModal('new-order')">إلغاء</button>
+  </div>
+</dialog>
+
+<!-- Add Employee Modal -->
+<dialog id="modal-add-emp" style="border:none;border-radius:20px;background:var(--dk2);color:var(--text);width:90%;max-width:400px;">
+  <h3 style="color:var(--honey);margin-bottom:15px;">موظف جديد</h3>
+  <div style="display:flex;flex-direction:column;gap:12px;">
+    <input class="finp" type="text" id="e-name" placeholder="الاسم الكامل">
+    <input class="finp" type="text" id="e-role" placeholder="الوظيفة">
+    <input class="finp" type="tel" id="e-phone" placeholder="الجوال">
+    <button class="btn btn-honey btn-full" onclick="submitEmployee()">✅ إضافة</button>
+    <button class="btn btn-ghost btn-full" onclick="closeModal('add-emp')">إلغاء</button>
+  </div>
+</dialog>
+
+<!-- TOASTS -->
+<div id="toasts"></div>
+
+<script>
+// ════ CONFIG ════════════════════════════════════════════
+const API_BASE = 'http://localhost:5000/api';
+let authToken = localStorage.getItem('token');
+let currentUser = null;
+
+// ════ AUTH ══════════════════════════════════════════════
+async function doLogin() {
+  const user = document.getElementById('login-user').value;
+  const pass = document.getElementById('login-pass').value;
+  if (!user || !pass) return showErr('أكمل البيانات');
+
+  try {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: user, password: pass })
+    });
+
+    const data = await res.json();
+    if (!res.ok) return showErr(data.error);
+
+    authToken = data.token;
+    currentUser = data.user;
+    localStorage.setItem('token', authToken);
+    localStorage.setItem('user', JSON.stringify(currentUser));
+
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').classList.add('active');
+    document.getElementById('top-user').textContent = currentUser.name;
+
+    loadDashboard();
+  } catch (err) {
+    showErr('خطأ في الاتصال بالخادم');
+  }
+}
+
+function doLogout() {
+  authToken = null;
+  currentUser = null;
+  localStorage.clear();
+  location.reload();
+}
+
+// ════ API CALLS ═════════════════════════════════════════
+async function apiCall(endpoint, method = 'GET', body = null) {
+  const options = {
+    method,
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${authToken}`
+    }
+  };
+  if (body) options.body = JSON.stringify(body);
+
+  try {
+    const res = await fetch(`${API_BASE}${endpoint}`, options);
+    if (res.status === 401) doLogout();
+    return await res.json();
+  } catch (err) {
+    showErr('خطأ في الاتصال');
+    return null;
+  }
+}
+
+// ════ LOAD DATA ═════════════════════════════════════════
+async function loadDashboard() {
+  const data = await apiCall('/finance/summary');
+  if (!data) return;
+
+  document.getElementById('dashboard-content').innerHTML = `
+    <div class="panel">
+      <h3 style="color:var(--honey);margin-bottom:10px;">📊 الإحصائيات</h3>
+      <p>💰 الإيرادات: <strong>${data.revenue?.toLocaleString() || '0'} ر.س</strong></p>
+      <p>📤 المصروفات: <strong>${data.expenses?.toLocaleString() || '0'} ر.س</strong></p>
+      <p>📈 الربح: <strong style="color:var(--ok)">${data.profit?.toLocaleString() || '0'} ر.س</strong></p>
+      <p>📋 الطلبات النشطة: <strong>${data.pendingOrders || '0'}</strong></p>
+      <p>✅ الطلبات المنجزة: <strong>${data.completedOrders || '0'}</strong></p>
+    </div>`;
+}
+
+async function loadOrders() {
+  const orders = await apiCall('/orders');
+  if (!orders) return;
+
+  let html = '';
+  orders.forEach(o => {
+    const statusClass = {
+      'جديد': 'b-new',
+      'جارٍ': 'b-prog',
+      'منجز': 'b-done',
+      'ملغي': 'b-err'
+    }[o.status] || 'b-new';
+
+    html += `
+      <div class="order-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-weight:700;">#${o.orderCode}</span>
+          <span class="badge ${statusClass}">${o.status}</span>
+        </div>
+        <p><strong>العميل:</strong> ${o.client}</p>
+        <p><strong>القيمة:</strong> ${o.value.toLocaleString()} ر.س</p>
+        <p><strong>النوع:</strong> ${o.type}</p>
+        <button class="btn btn-ghost btn-sm" onclick="deleteOrder('${o._id}')" style="margin-top:8px;font-size:11px;padding:5px 10px;">حذف</button>
+      </div>`;
+  });
+
+  document.getElementById('orders-list').innerHTML = html || '<p class="loading">لا توجد طلبات</p>';
+}
+
+async function loadTeam() {
+  const team = await apiCall('/team');
+  if (!team) return;
+
+  let html = '';
+  team.forEach(m => {
+    html += `
+      <div class="order-card">
+        <p style="font-weight:700;">${m.name}</p>
+        <p style="font-size:12px;color:var(--muted);">${m.role}</p>
+        <p style="font-size:11px;">📱 ${m.phone || '—'}</p>
+        <button class="btn btn-ghost btn-sm" onclick="deleteMember('${m._id}')" style="margin-top:8px;font-size:11px;padding:5px 10px;">حذف</button>
+      </div>`;
+  });
+
+  document.getElementById('team-list').innerHTML = html || '<p class="loading">لا يوجد فريق</p>';
+}
+
+async function loadFinance() {
+  const data = await apiCall('/finance/summary');
+  if (!data) return;
+
+  document.getElementById('finance-content').innerHTML = `
+    <div class="panel">
+      <h3 style="color:var(--honey);margin-bottom:15px;">📊 التحليل المالي</h3>
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+        <span>📥 الإيرادات</span>
+        <strong style="color:var(--ok)">${data.revenue?.toLocaleString() || '0'} ر.س</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+        <span>📤 المصروفات</span>
+        <strong style="color:var(--err)">${data.expenses?.toLocaleString() || '0'} ر.س</strong>
+      </div>
+      <hr style="border:none;border-top:1px solid var(--border);margin:10px 0;">
+      <div style="display:flex;justify-content:space-between;">
+        <span>💰 صافي الربح</span>
+        <strong style="color:var(--honey);font-size:16px;">${data.profit?.toLocaleString() || '0'} ر.س</strong>
+      </div>
+    </div>`;
+}
+
+async function loadClients() {
+  // سيتم إضافة هذه الدالة لاحقاً
+  document.getElementById('clients-list').innerHTML = '<p class="loading">جاري التحميل...</p>';
+}
+
+// ════ CRUD OPS ══════════════════════════════════════════
+async function submitOrder() {
+  const client = document.getElementById('o-client').value;
+  const val = parseFloat(document.getElementById('o-val').value);
+  const type = document.getElementById('o-type').value;
+
+  if (!client || !val) return showErr('أكمل البيانات');
+
+  const res = await apiCall('/orders', 'POST', { client, type, value: val, status: 'جديد' });
+  if (res?.message) {
+    showToast('✅ تم إنشاء الطلب', 'ok');
+    closeModal('new-order');
+    loadOrders();
+  }
+}
+
+async function submitEmployee() {
+  const name = document.getElementById('e-name').value;
+  const role = document.getElementById('e-role').value;
+  const phone = document.getElementById('e-phone').value;
+
+  if (!name || !role) return showErr('أكمل البيانات');
+
+  const res = await apiCall('/team', 'POST', { name, role, phone, status: 'd-on' });
+  if (res?.message) {
+    showToast('✅ تم إضافة الموظف', 'ok');
+    closeModal('add-emp');
+    loadTeam();
+  }
+}
+
+async function deleteOrder(id) {
+  if (!confirm('هل تريد حذف هذا الطلب؟')) return;
+  await apiCall(`/orders/${id}`, 'DELETE');
+  loadOrders();
+  showToast('🗑 تم الحذف', 'info');
+}
+
+async function deleteMember(id) {
+  if (!confirm('هل تريد حذف هذا الموظف؟')) return;
+  await apiCall(`/team/${id}`, 'DELETE');
+  loadTeam();
+  showToast('🗑 تم الحذف', 'info');
+}
+
+// ════ UI HELPERS ════════════════════════════════════════
+function goto(page, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('p-' + page).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const titles = {
+    dashboard: 'لوحة التحكم',
+    orders: 'الطلبات',
+    team: 'الفريق',
+    finance: 'المالية',
+    clients: 'العملاء'
+  };
+  document.getElementById('top-title').textContent = titles[page];
+
+  if (page === 'orders') loadOrders();
+  else if (page === 'team') loadTeam();
+  else if (page === 'finance') loadFinance();
+  else if (page === 'clients') loadClients();
+}
+
+function openModal(id) {
+  document.getElementById(`modal-${id}`).showModal();
+}
+
+function closeModal(id) {
+  document.getElementById(`modal-${id}`).close();
+}
+
+function showToast(msg, type = 'info') {
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.innerHTML = msg;
+  document.getElementById('toasts').appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+function showErr(msg) {
+  showToast('❌ ' + msg, 'error');
+  document.getElementById('login-err').style.display = 'block';
+}
+
+// ════ INIT ══════════════════════════════════════════════
+window.addEventListener('load', () => {
+  if (authToken && localStorage.getItem('user')) {
+    currentUser = JSON.parse(localStorage.getItem('user'));
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app').classList.add('active');
+    document.getElementById('top-user').textContent = currentUser.name;
+    loadDashboard();
+  }
+
+  document.getElementById('login-pass').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+});
+</script>
+</body>
+</html>
